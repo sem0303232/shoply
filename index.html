@@ -1,0 +1,97 @@
+<!doctype html>
+<html lang="nl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Shoply — Demo</title>
+<style>
+:root{--bg:#f6f7fb;--card:#fff;--text:#171923;--muted:#6b7280;--accent:#635bff;--line:#e7e8ef}
+*{box-sizing:border-box}body{margin:0;font-family:Inter,system-ui,-apple-system,Segoe UI,sans-serif;background:var(--bg);color:var(--text)}
+header{background:#11121a;color:white;padding:18px 5%;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:5}
+.logo{font-weight:800;font-size:22px}.logo span{color:#8b84ff}
+nav button,.btn{border:0;border-radius:10px;padding:11px 16px;font-weight:700;cursor:pointer}
+nav button{background:#252634;color:#fff;margin-left:8px}.btn{background:var(--accent);color:#fff}.btn.secondary{background:#eeeef5;color:#222}
+.hero{padding:64px 5%;background:linear-gradient(135deg,#151626,#29244d);color:#fff}.hero h1{font-size:clamp(34px,6vw,64px);margin:0 0 12px}.hero p{max-width:650px;color:#d9d9e5;font-size:18px}
+.wrap{max-width:1150px;margin:auto;padding:32px 5%}.products{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:18px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:18px;overflow:hidden;box-shadow:0 8px 25px #1111110b}.pic{height:190px;display:grid;place-items:center;font-size:72px;background:#eef0ff}.body{padding:18px}.price{font-size:24px;font-weight:800}.commission{color:#17834b;font-weight:700;font-size:14px}.muted{color:var(--muted)}
+.row{display:flex;justify-content:space-between;align-items:center;gap:12px}.modal{position:fixed;inset:0;background:#0008;display:none;align-items:center;justify-content:center;padding:20px;z-index:10}.modal.show{display:flex}.box{background:white;border-radius:18px;padding:24px;max-width:600px;width:100%;max-height:90vh;overflow:auto}
+input{width:100%;padding:12px;border:1px solid var(--line);border-radius:10px;margin:6px 0 14px;font:inherit}
+table{width:100%;border-collapse:collapse}td,th{padding:11px;border-bottom:1px solid var(--line);text-align:left}
+.statgrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:14px}.stat{background:white;padding:20px;border:1px solid var(--line);border-radius:15px}.stat b{font-size:28px;display:block;margin-top:6px}
+footer{text-align:center;padding:35px;color:var(--muted)}
+.toast{position:fixed;bottom:20px;right:20px;background:#11121a;color:#fff;padding:13px 17px;border-radius:10px;display:none;z-index:20}
+</style>
+</head>
+<body>
+<header><div class="logo">Nova<span>Shop</span></div><nav>
+<button onclick="openCart()">🛒 Winkelmandje (<span id="count">0</span>)</button>
+<button onclick="openAdmin()">⚙️ Beheer</button></nav></header>
+
+<section class="hero"><div class="wrap">
+<h1>Shop slim.<br>Verdien mee.</h1>
+<p>Een demo-webshop waarin producten worden verkocht en per product automatisch jouw commissie wordt berekend.</p>
+<button class="btn" onclick="document.getElementById('shop').scrollIntoView({behavior:'smooth'})">Bekijk producten</button>
+</div></section>
+
+<main id="shop" class="wrap">
+<h2>Uitgelichte producten</h2>
+<div id="products" class="products"></div>
+</main>
+
+<footer>Shoply demo · Betalingen zijn in deze demo gesimuleerd.</footer>
+
+<div id="modal" class="modal" onclick="if(event.target===this)closeModal()"><div class="box" id="modalBox"></div></div>
+<div id="toast" class="toast"></div>
+
+<script>
+let products = JSON.parse(localStorage.getItem('nova_products') || 'null') || [
+ {id:1,name:'Nova T-shirt',price:10,commission:2,emoji:'👕'},
+ {id:2,name:'Classic Hoodie',price:25,commission:3,emoji:'🧥'},
+ {id:3,name:'Nova Mug',price:8,commission:1,emoji:'☕'},
+ {id:4,name:'Canvas Tote',price:12,commission:2,emoji:'👜'}
+];
+let cart = JSON.parse(localStorage.getItem('nova_cart') || '[]');
+let sales = JSON.parse(localStorage.getItem('nova_sales') || '[]');
+
+const euro=n=>new Intl.NumberFormat('nl-NL',{style:'currency',currency:'EUR'}).format(n);
+function save(){localStorage.setItem('nova_products',JSON.stringify(products));localStorage.setItem('nova_cart',JSON.stringify(cart));localStorage.setItem('nova_sales',JSON.stringify(sales));}
+function render(){
+ document.getElementById('count').textContent=cart.reduce((a,x)=>a+x.qty,0);
+ document.getElementById('products').innerHTML=products.map(p=>`
+ <article class="card"><div class="pic">${p.emoji}</div><div class="body">
+ <h3>${p.name}</h3><div class="price">${euro(p.price)}</div>
+ <div class="commission">Jouw commissie: ${euro(p.commission)} per verkoop</div><br>
+ <button class="btn" onclick="add(${p.id})">In winkelmandje</button>
+ </div></article>`).join('');
+}
+function add(id){let x=cart.find(i=>i.id===id);x?x.qty++:cart.push({id,qty:1});save();render();toast('Toegevoegd aan je winkelmandje');}
+function openCart(){
+ let total=cart.reduce((s,i)=>s+(products.find(p=>p.id===i.id)?.price||0)*i.qty,0);
+ document.getElementById('modalBox').innerHTML=`<h2>Winkelmandje</h2>${cart.length?cart.map(i=>{let p=products.find(p=>p.id===i.id);return `<div class="row"><span>${p.emoji} ${p.name} × ${i.qty}</span><b>${euro(p.price*i.qty)}</b></div><hr>`}).join('')+`<h3>Totaal: ${euro(total)}</h3><button class="btn" onclick="checkout()">Demo-checkout</button> <button class="btn secondary" onclick="closeModal()">Sluiten</button>`:`<p class="muted">Je winkelmandje is leeg.</p><button class="btn secondary" onclick="closeModal()">Sluiten</button>`}`;
+ document.getElementById('modal').classList.add('show');
+}
+function checkout(){
+ if(!cart.length)return;
+ let total=0,comm=0;cart.forEach(i=>{let p=products.find(p=>p.id===i.id);total+=p.price*i.qty;comm+=p.commission*i.qty});
+ sales.push({date:new Date().toLocaleString('nl-NL'),total,commission:comm,items:cart.reduce((a,i)=>a+i.qty,0)});
+ cart=[];save();closeModal();render();toast('Demo-verkoop voltooid — commissie toegevoegd!');
+}
+function openAdmin(){
+ document.getElementById('modalBox').innerHTML=`<h2>Beheerdersdashboard</h2><p class="muted">Demo-modus: dit is geen echte beveiligde login.</p>
+ <div class="statgrid"><div class="stat">Omzet<b>${euro(sales.reduce((a,s)=>a+s.total,0))}</b></div><div class="stat">Jouw commissie<b>${euro(sales.reduce((a,s)=>a+s.commission,0))}</b></div><div class="stat">Verkopen<b>${sales.length}</b></div></div>
+ <h3>Producten</h3><table><tr><th>Product</th><th>Prijs</th><th>Commissie</th></tr>${products.map(p=>`<tr><td>${p.emoji} ${p.name}</td><td>${euro(p.price)}</td><td>${euro(p.commission)}</td></tr>`).join('')}</table>
+ <br><button class="btn" onclick="openProductForm()">+ Product toevoegen</button> <button class="btn secondary" onclick="closeModal()">Sluiten</button>`;
+ document.getElementById('modal').classList.add('show');
+}
+function openProductForm(){
+ document.getElementById('modalBox').innerHTML=`<h2>Product toevoegen</h2>
+ <label>Naam</label><input id="pn" placeholder="Bijv. Pet"><label>Prijs (€)</label><input id="pp" type="number" step=".01" placeholder="10"><label>Jouw commissie (€)</label><input id="pc" type="number" step=".01" placeholder="2"><label>Emoji</label><input id="pe" placeholder="🧢">
+ <button class="btn" onclick="createProduct()">Opslaan</button> <button class="btn secondary" onclick="openAdmin()">Annuleren</button>`;
+}
+function createProduct(){let name=pn.value.trim(),price=Number(pp.value),commission=Number(pc.value),emoji=pe.value.trim()||'📦';if(!name||price<=0||commission<0){toast('Vul de velden goed in');return}products.push({id:Date.now(),name,price,commission,emoji});save();render();openAdmin();toast('Product toegevoegd');}
+function closeModal(){document.getElementById('modal').classList.remove('show')}
+function toast(t){let x=document.getElementById('toast');x.textContent=t;x.style.display='block';setTimeout(()=>x.style.display='none',2200)}
+render();
+</script>
+</body>
+</html>
